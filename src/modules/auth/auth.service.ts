@@ -5,17 +5,21 @@ import {
     Injectable,
     ConflictException,
     UnauthorizedException,
+    NotFoundException,
+    BadRequestException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 // DTOs
 import { RegisterDto } from './dto/register.dto'
 import { LoginDto } from './dto/login.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
 // Services
 import { CognodbService } from '../cognodb/cognodb.service'
 // Types
 import {
     UserResponse,
     AuthResponse,
+    MessageResponse,
 } from '../../common/types/api-responses.types'
 import { UserProperties } from '../../common/types/graph-schemas.types'
 
@@ -118,5 +122,49 @@ export class AuthService {
             },
             accessToken: token,
         }
+    }
+
+    /**
+     * PATCH /auth/change-password
+     * Validate current password and update user node with new hashed password
+     */
+    async changePassword(
+        userId: string,
+        dto: ChangePasswordDto
+    ): Promise<MessageResponse> {
+        if (dto.currentPassword === dto.newPassword) {
+            throw new BadRequestException(
+                'New password must be different from current password'
+            )
+        }
+
+        const userResult = await this.db.read<{ passwordHash: string }>(
+            `MATCH (u:User {id: $userId}) RETURN u.passwordHash AS passwordHash`,
+            { userId }
+        )
+
+        if (userResult.length === 0) {
+            throw new NotFoundException('User not found')
+        }
+
+        const isPasswordValid = await bcrypt.compare(
+            dto.currentPassword,
+            userResult[0].passwordHash
+        )
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid current password')
+        }
+
+        const newPasswordHash = await bcrypt.hash(dto.newPassword, 10)
+
+        const updateCypher = `
+            MATCH (u:User {id: $userId})
+            SET u.passwordHash = $newPasswordHash
+        `
+
+        await this.db.write(updateCypher, { userId, newPasswordHash })
+
+        return { message: 'Password updated successfully' }
     }
 }

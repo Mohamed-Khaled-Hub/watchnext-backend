@@ -17,6 +17,10 @@ export type AuthResponse = {
 
 export type MovieResponse = MovieProperties
 
+export type MovieRelatedResponse = MovieProperties & {
+    sharedCount: number
+}
+
 export type PersonResponse = PersonProperties & {
     roles: PersonRole[]
 }
@@ -40,14 +44,30 @@ export type MovieDetailsResponse = {
     genres: GenreProperties[]
 }
 
+export type MovieConnectionLabel =
+    | 'Movie'
+    | 'Actor'
+    | 'Director'
+    | 'Genre'
+    | 'User (Liked)'
+    | 'User (Watched)'
+    | 'User (Watchlist)'
+
+export type MovieConnectionNode = {
+    id: string
+    name: string
+    image?: string
+    label: MovieConnectionLabel
+}
+
 export type MovieConnectionPath = {
-    source: string
-    target: string
-    relationship: string
+    length: number
+    nodes: MovieConnectionNode[]
 }
 
 export type MovieConnectionResponse = {
-    path: MovieConnectionPath[]
+    totalPaths: number
+    paths: MovieConnectionPath[]
 }
 
 export type TasteResponse = GenreProperties & {

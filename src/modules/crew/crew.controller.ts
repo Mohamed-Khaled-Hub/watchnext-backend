@@ -15,7 +15,7 @@ import {
 export class CrewController {
     constructor(private readonly crewService: CrewService) {}
 
-    // GET /crew
+    // GET /crew?search={string}
     @Get()
     async findAll(@Query() query: CrewQueryDto): Promise<PersonResponse[]> {
         return this.crewService.findAll(query)

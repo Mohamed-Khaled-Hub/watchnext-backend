@@ -22,13 +22,14 @@ import {
     MessageResponse,
     MovieDetailsResponse,
     MovieConnectionResponse,
+    MovieRelatedResponse,
 } from '../../common/types/api-responses.types'
 
 @Controller('movies')
 export class MoviesController {
     constructor(private readonly moviesService: MoviesService) {}
 
-    // GET /movies
+    // GET /movies?search={string}
     @Get()
     async findAll(@Query() query: MovieQueryDto): Promise<MovieResponse[]> {
         return this.moviesService.findAll(query)
@@ -48,7 +49,7 @@ export class MoviesController {
 
     // GET /movies/:id/related
     @Get(':id/related')
-    async getRelated(@Param('id') id: string): Promise<MovieResponse[]> {
+    async getRelated(@Param('id') id: string): Promise<MovieRelatedResponse[]> {
         return this.moviesService.getRelated(id)
     }
 

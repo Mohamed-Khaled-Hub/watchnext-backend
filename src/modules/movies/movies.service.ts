@@ -14,8 +14,11 @@ import {
 } from '../../common/types/graph-schemas.types'
 import {
     MessageResponse,
+    MovieConnectionNode,
+    MovieConnectionPath,
     MovieConnectionResponse,
     MovieDetailsResponse,
+    MovieRelatedResponse,
     MovieResponse,
     PersonResponse,
 } from '../../common/types/api-responses.types'
@@ -42,7 +45,7 @@ export class MoviesService {
     }
 
     /**
-     * GET /movies
+     * GET /movies?search={string}
      * Search movies by title without pagination (0 Hops)
      */
     async findAll(query: MovieQueryDto): Promise<MovieResponse[]> {
@@ -121,8 +124,8 @@ export class MoviesService {
                     rating: toFloat(m.rating),
                     poster: m.poster
                 } AS movie,
-                collect(DISTINCT d { .id, .name }) AS directors,
-                collect(DISTINCT a { .id, .name }) AS actors,
+                collect(DISTINCT d { .id, .name, .image }) AS directors,
+                collect(DISTINCT a { .id, .name, .image }) AS actors,
                 collect(DISTINCT g { .id, .name }) AS genres
         `
 
@@ -161,7 +164,7 @@ export class MoviesService {
      * GET /movies/:id/related
      * Find related movies via shared 2-hop graph entities
      */
-    async getRelated(id: string): Promise<MovieResponse[]> {
+    async getRelated(id: string): Promise<MovieRelatedResponse[]> {
         await this.findOne(id)
 
         const cypher = `
@@ -178,7 +181,9 @@ export class MoviesService {
             LIMIT 10
         `
 
-        const relatedMovies = await this.db.read<MovieResponse>(cypher, { id })
+        const relatedMovies = await this.db.read<MovieRelatedResponse>(cypher, {
+            id,
+        })
 
         if (relatedMovies.length === 0) {
             throw new NotFoundException(
@@ -190,8 +195,9 @@ export class MoviesService {
     }
 
     /**
-     * GET /movies/:id/connections/:targetId
-     * Shortest path graph traversal between two movies
+     * GET /movies/:id/connections/:targetId*
+     * Traverses all paths connecting two movies (up to 6 Hops), ordered by path length.
+     * Returns total paths and ordered nodes for each path.
      */
     async getConnections(
         sourceId: string,
@@ -202,25 +208,49 @@ export class MoviesService {
 
         const cypher = `
             MATCH (m1:Movie {id: $sourceId}), (m2:Movie {id: $targetId})
-            MATCH path = shortestPath((m1)-[*..6]-(m2))
-            RETURN [r IN relationships(path) | {
-                source: startNode(r).name,
-                target: endNode(r).name,
-                relationship: type(r)
-            }] AS connectionPath
+            MATCH path = (m1)-[*..6]-(m2)
+            WITH path, length(path) AS len
+            ORDER BY len ASC
+            LIMIT 50
+            RETURN 
+                len AS length,
+                [n IN nodes(path) | {
+                    id: n.id,
+                    name: coalesce(n.name, n.title),
+                    image: coalesce(n.image, n.poster),
+                    label: CASE 
+                        WHEN 'Movie' IN labels(n) THEN 'Movie'
+                        WHEN 'Genre' IN labels(n) THEN 'Genre'
+                        WHEN 'Person' IN labels(n) AND EXISTS((n)<-[:ACTED_IN]-()) THEN 'Actor'
+                        WHEN 'Person' IN labels(n) AND EXISTS((n)<-[:DIRECTED_BY]-()) THEN 'Director'
+                        WHEN 'User' IN labels(n) AND EXISTS((n)-[:LIKED]->()) THEN 'User (Liked)'
+                        WHEN 'User' IN labels(n) AND EXISTS((n)-[:WATCHED]->()) THEN 'User (Watched)'
+                        WHEN 'User' IN labels(n) AND EXISTS((n)-[:WANT_TO_WATCH]->()) THEN 'User (Watchlist)'
+                        ELSE labels(n)[0]
+                    END
+                }] AS nodes
         `
 
         const records = await this.db.read<{
-            connectionPath: MovieConnectionResponse['path']
+            length: number
+            nodes: MovieConnectionNode[]
         }>(cypher, { sourceId, targetId })
 
-        if (records.length === 0 || !records[0].connectionPath) {
+        if (records.length === 0) {
             throw new NotFoundException(
-                `No path found connecting movie "${sourceId}" to movie "${targetId}"`
+                `No paths found connecting movie "${sourceId}" to movie "${targetId}"`
             )
         }
 
-        return { path: records[0].connectionPath }
+        const paths: MovieConnectionPath[] = records.map((record) => ({
+            length: record.length,
+            nodes: record.nodes,
+        }))
+
+        return {
+            totalPaths: paths.length,
+            paths,
+        }
     }
 
     /**

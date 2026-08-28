@@ -19,7 +19,7 @@ export class CrewService {
     constructor(private readonly db: CognodbService) {}
 
     /**
-     * GET /crew
+     * GET /crew?search={string}
      * Search or browse actors and directors by name with inferred roles (1 Hop)
      */
     async findAll(query: CrewQueryDto): Promise<CrewResponse[]> {
@@ -36,6 +36,7 @@ export class CrewService {
             RETURN 
                 p.id AS id, 
                 p.name AS name,
+                p.image AS image,
                 toInteger(count(DISTINCT dm)) > 0 AS isDirector,
                 toInteger(count(DISTINCT am)) > 0 AS isActor
             ORDER BY p.name ASC
@@ -64,6 +65,7 @@ export class CrewService {
             return {
                 id: record.id,
                 name: record.name,
+                image: record.image,
                 roles,
             }
         })
@@ -83,6 +85,7 @@ export class CrewService {
             RETURN 
                 p.id AS id,
                 p.name AS name,
+                p.image AS image,
                 collect(DISTINCT dm {
                     .id,
                     .title,
@@ -102,6 +105,7 @@ export class CrewService {
         const records = await this.db.read<{
             id: string
             name: string
+            image: string
             directedMovies: CrewDetailsResponse['directedMovies']
             actedMovies: CrewDetailsResponse['actedMovies']
         }>(cypher, { id })
@@ -122,6 +126,7 @@ export class CrewService {
         return {
             id: record.id,
             name: record.name,
+            image: record.image,
             roles,
             directedMovies,
             actedMovies,

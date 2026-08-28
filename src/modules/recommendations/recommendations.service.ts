@@ -18,8 +18,8 @@ export class RecommendationsService {
      *
      * Generates personalized recommendations starting from movies liked by the user.
      * Traverses 3 hops in the graph to find connected movies through shared actors, directors, or genres.
-     * Excludes any movies the user has already liked or watched.
      * Scores candidates by adding 3 points for shared directors, 3 points for shared actors, and 2 points for shared genres.
+     * Excludes movies the user has already liked or watched using set filtering.
      * Ranks final results by their total connection score and rating.
      */
     async getRecommendations(
@@ -30,35 +30,61 @@ export class RecommendationsService {
             throw new NotFoundException(`User with ID "${userId}" not found`)
         }
 
-        const cypher = `
-            MATCH (u:User {id: $userId})-[:LIKED]->(m1:Movie)-[r1:DIRECTED_BY|ACTED_IN|HAS_GENRE]->(connected)<-[r2:DIRECTED_BY|ACTED_IN|HAS_GENRE]-(m2:Movie)
-            WHERE m1 <> m2
-              AND NOT (u)-[:LIKED]->(m2)
-              AND NOT (u)-[:WATCHED]->(m2)
-            
-            WITH m2,
-                 sum(CASE WHEN type(r1) = 'DIRECTED_BY' AND type(r2) = 'DIRECTED_BY' THEN 3 ELSE 0 END) AS directorScore,
-                 sum(CASE WHEN type(r1) = 'ACTED_IN' AND type(r2) = 'ACTED_IN' THEN 3 ELSE 0 END) AS actorScore,
-                 sum(CASE WHEN type(r1) = 'HAS_GENRE' AND type(r2) = 'HAS_GENRE' THEN 2 ELSE 0 END) AS genreScore
-            
-            WITH m2, (directorScore + actorScore + genreScore) AS totalScore
-            WHERE totalScore > 0
-            
+        const excludedMoviesCypher = `
+            MATCH (u:User {id: $userId})
+            OPTIONAL MATCH (u)-[:LIKED]->(liked:Movie)
+            OPTIONAL MATCH (u)-[:WATCHED]->(watched:Movie)
             RETURN 
-                m2.id AS id,
-                m2.title AS title,
-                toInteger(m2.year) AS year,
-                toFloat(m2.rating) AS rating,
-                m2.poster AS poster,
-                toInteger(totalScore) AS score
-            ORDER BY score DESC, rating DESC
-            LIMIT 10
+                collect(DISTINCT liked.id) AS likedIds,
+                collect(DISTINCT watched.id) AS watchedIds
         `
 
-        const recommendations = await this.db.read<RecommendedMovieResponse>(
-            cypher,
+        const [userInteractions] = await this.db.read<{
+            likedIds: string[]
+            watchedIds: string[]
+        }>(excludedMoviesCypher, { userId })
+
+        const excludedIds = new Set([
+            ...(userInteractions?.likedIds || []),
+            ...(userInteractions?.watchedIds || []),
+        ])
+
+        const candidateCypher = `
+            MATCH (u:User {id: $userId})-[:LIKED]->(liked:Movie)
+            MATCH (candidate:Movie)
+            WHERE liked.id <> candidate.id
+
+            OPTIONAL MATCH (liked)-[:DIRECTED_BY]->(director:Person)<-[:DIRECTED_BY]-(candidate)
+            WITH liked, candidate, count(DISTINCT director) * 3 AS directorScore
+
+            OPTIONAL MATCH (liked)-[:ACTED_IN]->(actor:Person)<-[:ACTED_IN]-(candidate)
+            WITH liked, candidate, directorScore, count(DISTINCT actor) * 3 AS actorScore
+
+            OPTIONAL MATCH (liked)-[:HAS_GENRE]->(genre:Genre)<-[:HAS_GENRE]-(candidate)
+            WITH liked, candidate, directorScore, actorScore, count(DISTINCT genre) * 2 AS genreScore
+
+            WITH candidate, sum(directorScore + actorScore + genreScore) AS totalScore
+            WHERE totalScore > 0
+
+            RETURN
+                candidate.id AS id,
+                candidate.title AS title,
+                coalesce(candidate.type, 'Movie') AS type,
+                toInteger(coalesce(candidate.year, 0)) AS year,
+                toFloat(coalesce(candidate.rating, 0.0)) AS rating,
+                coalesce(candidate.poster, '') AS poster,
+                toInteger(totalScore) AS score
+            ORDER BY score DESC, rating DESC
+        `
+
+        const candidates = await this.db.read<RecommendedMovieResponse>(
+            candidateCypher,
             { userId }
         )
+
+        const recommendations = candidates
+            .filter((movie) => !excludedIds.has(movie.id))
+            .slice(0, 10)
 
         if (recommendations.length === 0) {
             throw new NotFoundException(

@@ -1,8 +1,10 @@
+// Core
 import { config } from 'dotenv'
 import neo4j, { Driver } from 'neo4j-driver'
 
 config()
 
+// Env Variables
 const uri = process.env.COGNODB_URI as string
 const username = process.env.COGNODB_USERNAME as string
 const password = process.env.COGNODB_PASSWORD as string
@@ -14,7 +16,7 @@ async function seed() {
     console.log('Starting CognoDB seeding...')
 
     try {
-        console.log('🧹 Cleaning existing graph nodes (excluding Users)...')
+        console.log('Cleaning existing graph nodes (excluding Users)...')
         await session.executeWrite((tx) =>
             tx.run('MATCH (n) WHERE NOT n:User DETACH DELETE n')
         )
@@ -27,12 +29,36 @@ async function seed() {
             CREATE (g4:Genre {id: 'g-thriller', name: 'Thriller'})
 
             // 2. Create Crew / Persons
-            CREATE (p1:Person {id: 'p-nolan', name: 'Christopher Nolan'})
-            CREATE (p2:Person {id: 'p-dicaprio', name: 'Leonardo DiCaprio'})
-            CREATE (p3:Person {id: 'p-mcconaughey', name: 'Matthew McConaughey'})
-            CREATE (p4:Person {id: 'p-bale', name: 'Christian Bale'})
-            CREATE (p5:Person {id: 'p-villeneuve', name: 'Denis Villeneuve'})
-            CREATE (p6:Person {id: 'p-chalamet', name: 'Timothée Chalamet'})
+            CREATE (p1:Person {
+                id: 'p-nolan', 
+                name: 'Christopher Nolan', 
+                image: 'https://image.tmdb.org/t/p/original/xuAIuYSmsUzKlUMBFGVZaWsY3DZ.jpg'
+            })
+            CREATE (p2:Person {
+                id: 'p-dicaprio', 
+                name: 'Leonardo DiCaprio', 
+                image: 'https://image.tmdb.org/t/p/original/wo2hJpn04vbtmh0B9utCFdsQhxM.jpg'
+            })
+            CREATE (p3:Person {
+                id: 'p-mcconaughey', 
+                name: 'Matthew McConaughey', 
+                image: 'https://image.tmdb.org/t/p/original/lCySuYjhXix3FzQdS4oceDDrXKI.jpg'
+            })
+            CREATE (p4:Person {
+                id: 'p-bale', 
+                name: 'Christian Bale', 
+                image: 'https://image.tmdb.org/t/p/original/7Pxez9J8fuPd2Mn9kex13YALrCQ.jpg'
+            })
+            CREATE (p5:Person {
+                id: 'p-villeneuve', 
+                name: 'Denis Villeneuve', 
+                image: 'https://image.tmdb.org/t/p/original/zdDx9Xs93UIrJFWYApYR28J8M6b.jpg'
+            })
+            CREATE (p6:Person {
+                id: 'p-chalamet', 
+                name: 'Timothée Chalamet', 
+                image: 'https://image.tmdb.org/t/p/original/dFxpwRpmzpVfP1zjluH68DeQhyj.jpg'
+            })
 
             // 3. Create Movies
             CREATE (m1:Movie {
@@ -86,9 +112,9 @@ async function seed() {
         `
 
         await session.executeWrite((tx) => tx.run(seedCypher))
-        console.log('✅ CognoDB movies seeded successfully (Users preserved)!')
+        console.log('CognoDB movies seeded successfully (Users preserved)!')
     } catch (error) {
-        console.error('❌ Seeding failed:', error)
+        console.error('Seeding failed:', error)
     } finally {
         await session.close()
         await driver.close()

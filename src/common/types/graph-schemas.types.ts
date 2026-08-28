@@ -16,6 +16,7 @@ export type MovieProperties = {
 export type PersonProperties = {
     id: string
     name: string
+    image: string
 }
 
 export type GenreProperties = {

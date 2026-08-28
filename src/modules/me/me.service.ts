@@ -8,6 +8,7 @@ import {
     MovieResponse,
     TasteResponse,
     UserResponse,
+    MessageResponse,
 } from '../../common/types/api-responses.types'
 
 @Injectable()
@@ -158,5 +159,28 @@ export class MeService {
         }
 
         return taste
+    }
+
+    /**
+     * DELETE /me
+     * Delete the authenticated user and detach all associated relationships
+     */
+    async deleteMe(userId: string): Promise<MessageResponse> {
+        const userExists = await this.usersService.exists(userId)
+        if (!userExists) {
+            throw new NotFoundException(`User with ID "${userId}" not found`)
+        }
+
+        const cypher = `
+            MATCH (u:User {id: $userId})
+            DETACH DELETE u
+        `
+
+        await this.db.write(cypher, { userId })
+
+        return {
+            message:
+                'User account and all associated relationships deleted successfully',
+        }
     }
 }

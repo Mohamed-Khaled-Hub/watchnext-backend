@@ -1,5 +1,5 @@
 // Core
-import { Controller, Get, UseGuards } from '@nestjs/common'
+import { Controller, Get, Delete, UseGuards } from '@nestjs/common'
 // Decorators
 import { GetUser } from '../auth/decorators/get-user.decorator'
 // Guards
@@ -11,6 +11,7 @@ import {
     UserResponse,
     MovieResponse,
     TasteResponse,
+    MessageResponse,
 } from '../../common/types/api-responses.types'
 
 @UseGuards(JwtAuthGuard)
@@ -54,5 +55,11 @@ export class MeController {
         @GetUser('id') userId: string
     ): Promise<TasteResponse[]> {
         return this.meService.getUserTaste(userId)
+    }
+
+    // DELETE /me
+    @Delete()
+    async deleteMe(@GetUser('id') userId: string): Promise<MessageResponse> {
+        return this.meService.deleteMe(userId)
     }
 }

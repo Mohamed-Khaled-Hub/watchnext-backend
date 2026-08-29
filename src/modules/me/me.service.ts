@@ -5,10 +5,10 @@ import { CognodbService } from '../cognodb/cognodb.service'
 import { UsersService } from '../users/users.service'
 // Types
 import {
+    MessageResponse,
     MovieResponse,
     TasteResponse,
     UserResponse,
-    MessageResponse,
 } from '../../common/types/api-responses.types'
 
 @Injectable()
@@ -62,13 +62,7 @@ export class MeService {
                 m.poster AS poster
             ORDER BY year DESC
         `
-        const movies = await this.db.read<MovieResponse>(cypher, { userId })
-
-        if (movies.length === 0) {
-            throw new NotFoundException('No liked movies found for this user')
-        }
-
-        return movies
+        return await this.db.read<MovieResponse>(cypher, { userId })
     }
 
     /**
@@ -92,13 +86,7 @@ export class MeService {
             ORDER BY year DESC
         `
 
-        const movies = await this.db.read<MovieResponse>(cypher, { userId })
-
-        if (movies.length === 0) {
-            throw new NotFoundException('No watched movies found for this user')
-        }
-
-        return movies
+        return await this.db.read<MovieResponse>(cypher, { userId })
     }
 
     /**
@@ -121,15 +109,7 @@ export class MeService {
                 m.poster AS poster
             ORDER BY year DESC
         `
-        const movies = await this.db.read<MovieResponse>(cypher, { userId })
-
-        if (movies.length === 0) {
-            throw new NotFoundException(
-                'No watchlist movies found for this user'
-            )
-        }
-
-        return movies
+        return await this.db.read<MovieResponse>(cypher, { userId })
     }
 
     /**
@@ -150,15 +130,7 @@ export class MeService {
                 toInteger(count(m)) AS count
             ORDER BY count DESC, name ASC
         `
-        const taste = await this.db.read<TasteResponse>(cypher, { userId })
-
-        if (taste.length === 0) {
-            throw new NotFoundException(
-                'No taste profile available. Like some movies first to generate recommendations.'
-            )
-        }
-
-        return taste
+        return await this.db.read<TasteResponse>(cypher, { userId })
     }
 
     /**

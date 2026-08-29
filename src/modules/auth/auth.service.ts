@@ -33,8 +33,15 @@ export class AuthService {
     /**
      * Helper: Generate JWT payload token
      */
-    private generateToken(userId: string, email: string): string {
-        return this.jwtService.sign({ sub: userId, email })
+    private async generateToken(
+        userId: string,
+        email: string
+    ): Promise<string> {
+        const payload = { sub: userId, email }
+        return await this.jwtService.signAsync(payload, {
+            secret: process.env.JWT_SECRET,
+            expiresIn: '7d',
+        })
     }
 
     /**
@@ -72,7 +79,7 @@ export class AuthService {
         })
 
         const user = result[0]
-        const token = this.generateToken(user.id, user.email)
+        const token = await this.generateToken(user.id, user.email)
 
         return {
             user: { id: user.id, name: user.name, email: user.email },
@@ -112,7 +119,7 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials')
         }
 
-        const token = this.generateToken(user.id, user.email)
+        const token = await this.generateToken(user.id, user.email)
 
         return {
             user: {

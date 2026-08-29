@@ -10,13 +10,7 @@ import { AuthService } from './auth.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 
 @Module({
-    imports: [
-        PassportModule,
-        JwtModule.register({
-            secret: process.env.JWT_SECRET,
-            signOptions: { expiresIn: '7d' },
-        }),
-    ],
+    imports: [PassportModule, JwtModule.register({})],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy],
     exports: [AuthService, JwtStrategy, PassportModule],

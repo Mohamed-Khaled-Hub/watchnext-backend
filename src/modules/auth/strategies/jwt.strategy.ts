@@ -2,7 +2,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
-import { ConfigService } from '@nestjs/config'
 // Services
 import { CognodbService } from '../../cognodb/cognodb.service'
 // Types
@@ -10,14 +9,11 @@ import { JwtPayload } from '../types/auth.types'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(
-        configService: ConfigService,
-        private readonly db: CognodbService
-    ) {
+    constructor(private readonly db: CognodbService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get<string>('JWT_SECRET') as string,
+            secretOrKey: process.env.JWT_SECRET as string,
         })
     }
 

@@ -1,6 +1,5 @@
 // Core
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
 // Modules
 import { AuthModule } from './modules/auth/auth.module'
 import { CognodbModule } from './modules/cognodb/cognodb.module'
@@ -14,9 +13,6 @@ import { LoggerMiddleware } from './common/middlewares/logger.middleware'
 
 @Module({
     imports: [
-        ConfigModule.forRoot({
-            isGlobal: true,
-        }),
         CognodbModule,
         AuthModule,
         MoviesModule,

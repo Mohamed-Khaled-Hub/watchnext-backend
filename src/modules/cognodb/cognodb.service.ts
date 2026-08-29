@@ -1,5 +1,4 @@
 // Core
-import { ConfigService } from '@nestjs/config'
 import neo4j, { Driver, Session } from 'neo4j-driver'
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 
@@ -7,16 +6,10 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 export class CognodbService implements OnModuleInit, OnModuleDestroy {
     private driver: Driver
 
-    constructor(private readonly configService: ConfigService) {}
-
     async onModuleInit() {
-        const uri = this.configService.get<string>('COGNODB_URI') as string
-        const username = this.configService.get<string>(
-            'COGNODB_USERNAME'
-        ) as string
-        const password = this.configService.get<string>(
-            'COGNODB_PASSWORD'
-        ) as string
+        const uri = process.env.COGNODB_URI as string
+        const username = process.env.COGNODB_USERNAME as string
+        const password = process.env.COGNODB_PASSWORD as string
 
         this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password), {
             disableLosslessIntegers: true,
